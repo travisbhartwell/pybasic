@@ -1,7 +1,8 @@
-from .tokens import Token, is_operator, is_value, get_operation, get_operator_precedence, get_string_for_token
-
 from collections import deque
+
 from more_itertools import peekable
+
+from .tokens import Token, is_operator, is_value, get_operation, get_operator_precedence, get_string_for_token
 
 
 def evaluate(code_lines):
@@ -77,7 +78,7 @@ def evaluate(code_lines):
                 try:
                     value = parse_and_eval_expression(token_iter, context)
 
-                    if value == True:
+                    if value:
                         token, pos = token_iter.next()
                         if isinstance(token, Token.Then):
                             token, pos = token_iter.next()
@@ -87,11 +88,14 @@ def evaluate(code_lines):
                                 if line_index is None:
                                     raise Exception("At {}, {} invalid target line for THEN".format(line_number, pos))
                             else:
-                                raise Exception("At {}, {} IF must be followed by an expression and then THEN line number.".format(line_number, pos))
+                                raise Exception("At {}, {} IF must be followed by an expression\
+                                  and then THEN line number.".format(line_number, pos))
                         else:
-                            raise Exception("At {}, {} IF must be followed by an expression and then THEN line number.".format(line_number, pos))
+                            raise Exception("At {}, {} IF must be followed by an expression \
+                            and then THEN line number.".format(line_number, pos))
                 except (StopIteration, Exception):
-                    raise Exception("At {}, {} IF must be followed by an expression and then THEN line number.".format(line_number, pos))
+                    raise Exception("At {}, {} IF must be followed by an expression \
+                    and then THEN line number.".format(line_number, pos))
             else:
                 raise Exception("At {}, {} invalid syntax".format(line_number, pos))
 
@@ -122,22 +126,23 @@ def parse_expression(token_iter):
             done = False
             while not done:
                 try:
-                    next = operator_stack.pop()
-                    if isinstance(next, Token.LParen):
+                    next_token = operator_stack.pop()
+                    if isinstance(next_token, Token.LParen):
                         done = True
                     else:
-                        output_queue.append(next)
+                        output_queue.append(next_token)
                 except IndexError:
                     raise Exception("Mismatched parenthesis in expression")
 
     while len(operator_stack) > 0:
-        next = operator_stack.pop()
-        if isinstance(next, (Token.LParen, Token.RParen)):
+        next_token = operator_stack.pop()
+        if isinstance(next_token, (Token.LParen, Token.RParen)):
             raise Exception("Mismatched parenthesis in expression")
         else:
-            output_queue.append(next)
+            output_queue.append(next_token)
 
     return output_queue
+
 
 def _get_value(token, context):
     if not is_value(token):
@@ -148,10 +153,11 @@ def _get_value(token, context):
         return token.value
     elif isinstance(token, Token.Variable):
         value = context.get(token.name, None)
-        if value == None:
-            raise Exception("Invalid variable {} referenced.".format(name))
+        if value is None:
+            raise Exception("Invalid variable {} referenced.".format(token.name))
         else:
             return value
+
 
 def parse_and_eval_expression(token_iter, context):
     output_queue = parse_expression(token_iter)
