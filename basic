@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from pybasic import lexer
+from pybasic import evaluator
 
 import click
 
@@ -8,7 +9,8 @@ import click
 @click.argument('program', type=click.File('r'))
 def main(program):
     lines = [line.strip() for line in program.readlines()]
-    print([lexer.tokenize_line(line) for line in lines])
+    code_lines = [lexer.tokenize_line(line) for line in lines]
+    evaluator.evaluate(code_lines)
 
 if __name__ == "__main__":
     main()

@@ -76,8 +76,6 @@ def tokenize_line(line):
                 else:
                     token = get_token_for_string(token_str)
 
-                    print("Found token: ", token)
-
                     if token is None:
                         if _is_valid_identifier(token_str):
                             line_tokens.append(TokenAndPos(Token.Variable(name=token_str), pos))
