@@ -1,15 +1,14 @@
-from . tokens import Token, get_token_for_string
+from .tokens import Token, get_token_for_string
 
 from collections import namedtuple
-from enum import Enum
 import itertools
 
 from more_itertools import peekable
 
-
 TokenAndPos = namedtuple('TokenAndPos', ['token', 'pos'])
 
 LineOfCode = namedtuple('LineOfCode', ['line_number', 'tokens'])
+
 
 def _is_int(n):
     try:

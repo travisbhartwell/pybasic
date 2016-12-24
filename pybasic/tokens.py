@@ -1,5 +1,6 @@
 import attr
-from sumtypes import sumtype, constructor, match
+from sumtypes import sumtype, constructor
+
 
 @sumtype
 class Token(object):
@@ -38,6 +39,7 @@ class Token(object):
     Rem = constructor()
     Then = constructor()
 
+
 _str_to_token_map = {
     "=": Token.Equals,
     "<": Token.LessThan,
@@ -63,8 +65,10 @@ _str_to_token_map = {
 
 _token_to_str_map = {v: k for k, v in _str_to_token_map.items()}
 
+
 def get_token_for_string(token_str):
     return _str_to_token_map.get(token_str, None)
+
 
 def get_string_for_token(token_obj):
     return _token_to_str_map.get(type(token_obj), None)

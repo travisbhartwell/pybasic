@@ -1,7 +1,6 @@
-from . tokens import Token
+from .tokens import Token
 
 from more_itertools import peekable
-from sumtypes import match_partial
 
 
 def evaluate(code_lines):
@@ -9,7 +8,7 @@ def evaluate(code_lines):
     line_map = {}
 
     for line_number, line_tokens in code_lines:
-       lineno_to_code[line_number] = line_tokens
+        lineno_to_code[line_number] = line_tokens
     line_numbers = sorted(lineno_to_code.keys())
     for index, line_number in enumerate(line_numbers):
         line_map[line_number] = index
@@ -39,7 +38,7 @@ def evaluate(code_lines):
                     token, pos = token_iter.next()
                     if type(token) == Token.Number:
                         line_index = line_map.get(token.value)
-                        if line_index == None:
+                        if line_index is None:
                             raise Exception("At {}, {} invalid target line for GOTO".format(line_number, pos))
                     else:
                         raise Exception("At {}, {} GOTO must be followed by valid line number".format(line_number, pos))
@@ -83,6 +82,7 @@ def evaluate(code_lines):
             if line_index == num_lines:
                 break
 
+
 def parse_and_eval_expression(token_iter, context):
     # Default Value
     result = ""
@@ -94,8 +94,8 @@ def parse_and_eval_expression(token_iter, context):
             result = token.value
         elif type(token) == Token.Variable:
             result = context.get(token.name, None)
-            if result == None:
-                raise Exception("At {}, invalid variable referencein expression: {}".format(pos, token.name))
+            if result is None:
+                raise Exception("At {}, invalid variable reference in expression: {}".format(pos, token.name))
         elif type(token) == Token.BString:
             result = token.value
         elif type(token) == Token.Minus:
