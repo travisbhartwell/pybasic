@@ -1,0 +1,4 @@
+click==6.6
+more_itertools==2.4.1
+attrs==16.3.0
+sumtypes==0.1a4
