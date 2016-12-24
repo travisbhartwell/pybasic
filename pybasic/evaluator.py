@@ -90,12 +90,11 @@ def parse_expression(token_iter):
 
     while token_iter and type(token_iter.peek()[1]) != Token.Then:
         token, pos = token_iter.next()
-
         if is_value(token):
             output_queue.append(token)
         elif is_operator(token):
-            if len(operator_stack) > 0:
-                top_op = operator_stack[0]
+            if len(operator_stack) > 0 and is_operator(operator_stack[-1]):
+                top_op = operator_stack[-1]
                 if get_operator_precedence(token) <= get_operator_precedence(top_op):
                     top_op = operator_stack.pop()
                     output_queue.append(top_op)
@@ -120,6 +119,7 @@ def parse_expression(token_iter):
             raise Exception("Mismatched parenthesis in expression")
         else:
             output_queue.append(next)
+
     return output_queue
 
 def _get_value(token, context):
@@ -150,7 +150,7 @@ def parse_and_eval_expression(token_iter, context):
                 if type(token) == Token.Divide:
                     stack.append(operand1_value / operand2_value)
                 elif type(token) == Token.Multiply:
-                    stack.append(operand1_value / operand2_value)
+                    stack.append(operand1_value * operand2_value)
                 elif type(token) == Token.Minus:
                     stack.append(operand1_value - operand2_value)
                 elif type(token) == Token.Plus:

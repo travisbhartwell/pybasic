@@ -84,7 +84,7 @@ def is_value(token_obj):
 
 def get_operator_precedence(token_obj):
     if not is_operator(token_obj):
-        raise Exception("Not an operator!")
+        raise Exception("Not an operator: {}".format(str(token_obj)))
 
     if isinstance(token_obj, (Token.Multiply, Token.Divide)):
         return 10
