@@ -1,3 +1,5 @@
+from enum import Enum
+
 import attr
 from sumtypes import sumtype, constructor, match_partial
 
@@ -15,7 +17,11 @@ class Token(object):
     BString = constructor(
         value=attr.ib(validator=attr.validators.instance_of(str)))
 
-    # // Operators
+    # Unary operators
+    UMinus = constructor()
+    Bang = constructor()
+
+    # Operators
     Equals = constructor()
     LessThan = constructor()
     GreaterThan = constructor()
@@ -28,7 +34,6 @@ class Token(object):
     Plus = constructor()
     LParen = constructor()
     RParen = constructor()
-    Bang = constructor()
 
     # Keywords
     Goto = constructor()
@@ -50,6 +55,7 @@ _str_to_token_map = {
     "*": Token.Multiply,
     "/": Token.Divide,
     "-": Token.Minus,
+    "-": Token.UMinus,
     "+": Token.Plus,
     "(": Token.LParen,
     ")": Token.RParen,
@@ -77,12 +83,23 @@ def get_string_for_token(token_obj):
 def is_operator(token_obj):
     return isinstance(token_obj,
                       (Token.Equals, Token.LessThan, Token.GreaterThan, Token.LessThanEqual,
-                       Token.NotEqual, Token.Multiply, Token.Divide, Token.Minus, Token.Plus))
+                       Token.NotEqual, Token.Multiply, Token.Divide, Token.Minus, Token.Plus,
+                       Token.Bang, Token.UMinus))
+
+
+def is_unary_operator(token_obj):
+    return isinstance(token_obj,
+                      (Token.UMinus, Token.Bang))
 
 
 def is_value(token_obj):
     return isinstance(token_obj,
                       (Token.Variable, Token.Number, Token.BString))
+
+
+class Associativity(Enum):
+    Left = 0
+    Right = 1
 
 
 def get_operator_precedence(token_obj):
@@ -96,6 +113,14 @@ def get_operator_precedence(token_obj):
     else:
         return 4
 
+def get_operator_associativity(token_obj):
+    if not is_operator(token_obj):
+        raise Exception("Not an operator: {}".format(str(token_obj)))
+
+    if isinstance(token_obj, (Token.UMinus, Token.Bang)):
+        return Associativity.Right
+    else:
+        return Associativity.Left
 
 @match_partial(Token)
 class get_operation(object):
@@ -125,6 +150,12 @@ class get_operation(object):
 
     def Plus():
         return lambda a, b: a + b
+
+    def UMinus():
+        return lambda a: -a
+
+    def Bang():
+        return lambda a: not a
 
     def _():
         raise NotImplementedError("Should not get here")

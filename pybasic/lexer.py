@@ -1,4 +1,4 @@
-from .tokens import Token, get_token_for_string
+from .tokens import Token, get_token_for_string, is_value
 
 from collections import namedtuple
 import itertools
@@ -34,6 +34,17 @@ def _is_valid_identifier(ident):
     return True
 
 
+def _takewhile_peek(predicate, iterable):
+    """
+    Alternate implementation of itertools.takewhile() that uses peek.
+    """
+    while True:
+        p = iterable.peek(None)
+        if p is not None and predicate(p):
+            yield next(iterable)
+        else:
+            break
+
 def tokenize_line(line):
     char_iter = peekable(enumerate(line))
     line_tokens = []
@@ -62,11 +73,20 @@ def tokenize_line(line):
                 bstring = "".join(str_chars)
                 line_tokens.append(TokenAndPos(Token.BString(bstring), pos))
             elif ch == '-':
-                line_tokens.append(TokenAndPos(Token.Minus(), pos))
+                # If the previous token is a value, it's a binary operation
+                if is_value(line_tokens[-1].token):
+                    line_tokens.append(TokenAndPos(Token.Minus(), pos))
+                # Otherwise, unary minus
+                else:
+                    line_tokens.append(TokenAndPos(Token.UMinus(), pos))
             elif ch == '!':
                 line_tokens.append(TokenAndPos(Token.Bang(), pos))
+            elif ch == "(":
+                line_tokens.append(TokenAndPos(Token.LParen(), pos))
+            elif ch == ")":
+                line_tokens.append(TokenAndPos(Token.RParen(), pos))
             else:
-                token_chars = [x for (_, x) in itertools.takewhile(lambda x: not x[1].isspace(), char_iter)]
+                token_chars = [x for (_, x) in _takewhile_peek(lambda x: not (x[1].isspace() or x[1] == ')'), char_iter)]
                 token_chars.insert(0, ch)
                 token_str = "".join(token_chars)
 

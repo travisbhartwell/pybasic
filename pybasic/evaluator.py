@@ -2,7 +2,9 @@ from collections import deque
 
 from more_itertools import peekable
 
-from .tokens import Token, is_operator, is_value, get_operation, get_operator_precedence, get_string_for_token
+from .tokens import (Token, Associativity, is_operator, is_unary_operator,
+                     is_value, get_operation, get_operator_associativity,
+                     get_operator_precedence, get_string_for_token)
 
 
 def evaluate(code_lines):
@@ -134,10 +136,15 @@ def _parse_expression(token_iter):
         elif is_operator(token):
             if len(operator_stack) > 0 and is_operator(operator_stack[-1]):
                 top_op = operator_stack[-1]
-                if get_operator_precedence(token) <= get_operator_precedence(
-                        top_op):
+                associativity = get_operator_associativity(token)
+
+                if (associativity == Associativity.Left \
+                   and get_operator_precedence(token) <= get_operator_precedence(top_op)) or \
+                (associativity == Associativity.Right \
+                     and get_operator_precedence(token) < get_operator_precedence(top_op)):
                     top_op = operator_stack.pop()
                     output_queue.append(top_op)
+
             operator_stack.append(token)
         elif isinstance(token, Token.LParen):
             operator_stack.append(token)
@@ -183,7 +190,16 @@ def _parse_and_eval_expression(token_iter, context):
 
     while len(output_queue) > 0:
         token = output_queue.popleft()
-        if is_operator(token):
+        if is_unary_operator(token):
+            if len(stack) >= 1:
+                operand_value = stack.pop()
+
+                stack.append(
+                    get_operation(token)(operand_value))
+            else:
+                raise Exception("Operator {} requires an operand".format(
+                    get_string_for_token(token)))
+        elif is_operator(token):
             if len(stack) >= 2:
                 operand2_value = stack.pop()
                 operand1_value = stack.pop()
@@ -196,4 +212,6 @@ def _parse_and_eval_expression(token_iter, context):
         else:
             stack.append(_get_value(token, context))
 
+    # If the expression is well-formed, there should only be the result on the stack
+    assert (len(stack) == 1)
     return stack[0]
