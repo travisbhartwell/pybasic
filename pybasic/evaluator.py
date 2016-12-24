@@ -59,15 +59,15 @@ def evaluate(code_lines):
                         name = token.name
                         token, _ = token_iter.next()
                         if isinstance(token, Token.Equals):
-                            value = parse_and_eval_expression(token_iter,
-                                                              context)
+                            value = _parse_and_eval_expression(token_iter,
+                                                               context)
                             context[name] = value
                 except (StopIteration, Exception):
                     raise Exception("At {}, {} invalid syntax for LET.".format(
                         line_number, pos))
             elif isinstance(token, Token.Print):
                 try:
-                    value = parse_and_eval_expression(token_iter, context)
+                    value = _parse_and_eval_expression(token_iter, context)
                     print(value)
                 except Exception:
                     raise Exception(
@@ -88,7 +88,7 @@ def evaluate(code_lines):
                 # Expression THEN Number
                 # Number must be a valid line number
                 try:
-                    value = parse_and_eval_expression(token_iter, context)
+                    value = _parse_and_eval_expression(token_iter, context)
 
                     if value:
                         token, pos = token_iter.next()
@@ -123,7 +123,7 @@ def evaluate(code_lines):
                 break
 
 
-def parse_expression(token_iter):
+def _parse_expression(token_iter):
     output_queue = deque()
     operator_stack = []
 
@@ -166,9 +166,7 @@ def parse_expression(token_iter):
 def _get_value(token, context):
     if not is_value(token):
         raise Exception("Operand {} is not a value".format(str(token)))
-    if isinstance(token, Token.Number):
-        return token.value
-    elif isinstance(token, Token.BString):
+    if isinstance(token, (Token.Number, Token.BString)):
         return token.value
     elif isinstance(token, Token.Variable):
         value = context.get(token.name, None)
@@ -179,8 +177,8 @@ def _get_value(token, context):
             return value
 
 
-def parse_and_eval_expression(token_iter, context):
-    output_queue = parse_expression(token_iter)
+def _parse_and_eval_expression(token_iter, context):
+    output_queue = _parse_expression(token_iter)
     stack = []
 
     while len(output_queue) > 0:
