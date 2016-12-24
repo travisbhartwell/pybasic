@@ -1,4 +1,4 @@
-from .tokens import Token, is_operator, is_value, get_operator_precedence, get_string_for_token
+from .tokens import Token, is_operator, is_value, get_operation, get_operator_precedence, get_string_for_token
 
 from collections import deque
 from more_itertools import peekable
@@ -29,15 +29,15 @@ def evaluate(code_lines):
             token, pos = token_iter.next()
             line_has_goto = False
 
-            if type(token) == Token.Rem:
+            if isinstance(token, Token.Rem):
                 # Skip the rest of the line, so do nothing
                 pass
-            elif type(token) == Token.Goto:
+            elif isinstance(token, Token.Goto):
                 line_has_goto = True
 
                 try:
                     token, pos = token_iter.next()
-                    if type(token) == Token.Number:
+                    if isinstance(token, Token.Number):
                         line_index = line_map.get(token.value)
                         if line_index is None:
                             raise Exception("At {}, {} invalid target line for GOTO".format(line_number, pos))
@@ -45,36 +45,53 @@ def evaluate(code_lines):
                         raise Exception("At {}, {} GOTO must be followed by valid line number".format(line_number, pos))
                 except StopIteration:
                     raise Exception("At {}, {} GOTO must be followed by valid line number".format(line_number, pos))
-            elif type(token) == Token.Let:
+            elif isinstance(token, Token.Let):
                 try:
                     token, _ = token_iter.next()
-                    if type(token) == Token.Variable:
+                    if isinstance(token, Token.Variable):
                         name = token.name
                         token, _ = token_iter.next()
-                        if type(token) == Token.Equals:
+                        if isinstance(token, Token.Equals):
                             value = parse_and_eval_expression(token_iter, context)
                             context[name] = value
                 except (StopIteration, Exception):
                     raise Exception("At {}, {} invalid syntax for LET.".format(line_number, pos))
-            elif type(token) == Token.Print:
+            elif isinstance(token, Token.Print):
                 try:
                     value = parse_and_eval_expression(token_iter, context)
                     print(value)
                 except Exception:
                     raise Exception("At {}, {} PRINT must be followed by valid expression".format(line_number, pos))
-            elif type(token) == Token.Input:
+            elif isinstance(token, Token.Input):
                 try:
                     token, pos = token_iter.next()
-                    if type(token) == Token.Variable:
+                    if isinstance(token, Token.Variable):
                         input_value = input().strip()
                         context[token.name] = input_value
                 except StopIteration:
                     raise Exception("At {}, {} INPUT must be followed by a variable name".format(line_number, pos))
-            elif type(token) == Token.If:
+            elif isinstance(token, Token.If):
                 # Expected Next:
                 # Expression THEN Number
                 # Number must be a valid line number
-                pass
+                try:
+                    value = parse_and_eval_expression(token_iter, context)
+
+                    if value == True:
+                        token, pos = token_iter.next()
+                        if isinstance(token, Token.Then):
+                            token, pos = token_iter.next()
+                            if isinstance(token, Token.Number):
+                                line_has_goto = True
+                                line_index = line_map.get(token.value)
+                                if line_index is None:
+                                    raise Exception("At {}, {} invalid target line for THEN".format(line_number, pos))
+                            else:
+                                raise Exception("At {}, {} IF must be followed by an expression and then THEN line number.".format(line_number, pos))
+                        else:
+                            raise Exception("At {}, {} IF must be followed by an expression and then THEN line number.".format(line_number, pos))
+                except (StopIteration, Exception):
+                    raise Exception("At {}, {} IF must be followed by an expression and then THEN line number.".format(line_number, pos))
             else:
                 raise Exception("At {}, {} invalid syntax".format(line_number, pos))
 
@@ -88,8 +105,8 @@ def parse_expression(token_iter):
     output_queue = deque()
     operator_stack = []
 
-    while token_iter and type(token_iter.peek()[1]) != Token.Then:
-        token, pos = token_iter.next()
+    while token_iter and not isinstance(token_iter.peek()[0], Token.Then):
+        token, _ = token_iter.next()
         if is_value(token):
             output_queue.append(token)
         elif is_operator(token):
@@ -99,14 +116,14 @@ def parse_expression(token_iter):
                     top_op = operator_stack.pop()
                     output_queue.append(top_op)
             operator_stack.append(token)
-        elif type(token) == Token.LParen:
+        elif isinstance(token, Token.LParen):
             operator_stack.append(token)
-        elif type(token) == Token.RParen:
+        elif isinstance(token, Token.RParen):
             done = False
             while not done:
                 try:
                     next = operator_stack.pop()
-                    if type(next) == Token.LParen:
+                    if isinstance(next, Token.LParen):
                         done = True
                     else:
                         output_queue.append(next)
@@ -115,7 +132,7 @@ def parse_expression(token_iter):
 
     while len(operator_stack) > 0:
         next = operator_stack.pop()
-        if type(next) == Token.LParen or type(next) == Token.RParen:
+        if isinstance(next, (Token.LParen, Token.RParen)):
             raise Exception("Mismatched parenthesis in expression")
         else:
             output_queue.append(next)
@@ -125,11 +142,11 @@ def parse_expression(token_iter):
 def _get_value(token, context):
     if not is_value(token):
         raise Exception("Operand {} is not a value".format(str(token)))
-    if type(token) == Token.Number:
+    if isinstance(token, Token.Number):
         return token.value
-    elif type(token) == Token.BString:
+    elif isinstance(token, Token.BString):
         return token.value
-    elif type(token) == Token.Variable:
+    elif isinstance(token, Token.Variable):
         value = context.get(token.name, None)
         if value == None:
             raise Exception("Invalid variable {} referenced.".format(name))
@@ -147,26 +164,7 @@ def parse_and_eval_expression(token_iter, context):
                 operand2_value = stack.pop()
                 operand1_value = stack.pop()
 
-                if type(token) == Token.Divide:
-                    stack.append(operand1_value / operand2_value)
-                elif type(token) == Token.Multiply:
-                    stack.append(operand1_value * operand2_value)
-                elif type(token) == Token.Minus:
-                    stack.append(operand1_value - operand2_value)
-                elif type(token) == Token.Plus:
-                    stack.append(operand1_value + operand2_value)
-                elif type(token) == Token.Equals:
-                    stack.append(operand1_value == operand2_value)
-                elif type(token) == Token.LessThan:
-                    stack.append(operand1_value < operand2_value)
-                elif type(token) == Token.GreaterThan:
-                    stack.append(operand1_value > operand2_value)
-                elif type(token) == Token.LessThanEqual:
-                    stack.append(operand1_value <= operand2_value)
-                elif type(token) == Token.NotEqual:
-                    stack.append(operand1_value != operand2_value)
-                else:
-                    raise Exception("Should not get here")
+                stack.append(get_operation(token)(operand1_value, operand2_value))
             else:
                 raise Exception("Operator {} requires two operands".format(get_string_for_token(token)))
         else:

@@ -1,5 +1,5 @@
 import attr
-from sumtypes import sumtype, constructor
+from sumtypes import sumtype, constructor, match_partial
 
 
 @sumtype
@@ -92,3 +92,26 @@ def get_operator_precedence(token_obj):
         return 8
     else:
         return 4
+
+@match_partial(Token)
+class get_operation(object):
+    def Equals():
+        return lambda a, b: a == b
+    def LessThan():
+        return lambda a, b: a < b
+    def GreaterThan():
+        return lambda a, b: a > b
+    def LessThanEqual():
+        return lambda a, b: a <= b
+    def NotEqual():
+        return lambda a, b: a != b
+    def Multiply():
+        return lambda a, b: a * b
+    def Divide():
+        return lambda a, b: a / b
+    def Minus():
+        return lambda a, b: a - b
+    def Plus():
+        return lambda a, b: a + b
+    def _():
+        raise NotImplementedError("Should not get here")
