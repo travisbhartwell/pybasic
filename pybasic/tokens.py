@@ -72,3 +72,23 @@ def get_token_for_string(token_str):
 
 def get_string_for_token(token_obj):
     return _token_to_str_map.get(type(token_obj), None)
+
+def is_operator(token_obj):
+    return isinstance(token_obj,
+                      (Token.Equals, Token.LessThan, Token.GreaterThan, Token.LessThanEqual,
+                       Token.NotEqual, Token.Multiply, Token.Divide, Token.Minus, Token.Plus))
+
+def is_value(token_obj):
+    return isinstance(token_obj,
+                      (Token.Variable, Token.Number, Token.BString))
+
+def get_operator_precedence(token_obj):
+    if not is_operator(token_obj):
+        raise Exception("Not an operator!")
+
+    if isinstance(token_obj, (Token.Multiply, Token.Divide)):
+        return 10
+    elif isinstance(token_obj, (Token.Minus, Token.Plus)):
+        return 8
+    else:
+        return 4

@@ -1,5 +1,6 @@
-from .tokens import Token
+from .tokens import Token, is_operator, is_value, get_operator_precedence, get_string_for_token
 
+from collections import deque
 from more_itertools import peekable
 
 
@@ -83,36 +84,92 @@ def evaluate(code_lines):
                 break
 
 
-def parse_and_eval_expression(token_iter, context):
-    # Default Value
-    result = ""
+def parse_expression(token_iter):
+    output_queue = deque()
+    operator_stack = []
 
-    try:
+    while token_iter and type(token_iter.peek()[1]) != Token.Then:
         token, pos = token_iter.next()
 
-        if type(token) == Token.Number:
-            result = token.value
-        elif type(token) == Token.Variable:
-            result = context.get(token.name, None)
-            if result is None:
-                raise Exception("At {}, invalid variable reference in expression: {}".format(pos, token.name))
-        elif type(token) == Token.BString:
-            result = token.value
-        elif type(token) == Token.Minus:
-            result = parse_and_eval_expression(token_iter, context)
-            if type(result) == int:
-                result = -result
-            else:
-                raise Exception("At {}, can only negate numerical expressions".format(pos))
-        elif type(token) == Token.Bang:
-            result = parse_and_eval_expression(token_iter, context)
-            if type(result) == bool:
-                result = not result
-            else:
-                raise Exception("At {}, boolean not only works against boolean expressions".format(pos))
-        else:
-            raise Exception("Unimplemented")
-    except StopIteration:
-        raise Exception("Empty expression")
+        if is_value(token):
+            output_queue.append(token)
+        elif is_operator(token):
+            if len(operator_stack) > 0:
+                top_op = operator_stack[0]
+                if get_operator_precedence(token) <= get_operator_precedence(top_op):
+                    top_op = operator_stack.pop()
+                    output_queue.append(top_op)
+            operator_stack.append(token)
+        elif type(token) == Token.LParen:
+            operator_stack.append(token)
+        elif type(token) == Token.RParen:
+            done = False
+            while not done:
+                try:
+                    next = operator_stack.pop()
+                    if type(next) == Token.LParen:
+                        done = True
+                    else:
+                        output_queue.append(next)
+                except IndexError:
+                    raise Exception("Mismatched parenthesis in expression")
 
-    return result
+    while len(operator_stack) > 0:
+        next = operator_stack.pop()
+        if type(next) == Token.LParen or type(next) == Token.RParen:
+            raise Exception("Mismatched parenthesis in expression")
+        else:
+            output_queue.append(next)
+    return output_queue
+
+def _get_value(token, context):
+    if not is_value(token):
+        raise Exception("Operand {} is not a value".format(str(token)))
+    if type(token) == Token.Number:
+        return token.value
+    elif type(token) == Token.BString:
+        return token.value
+    elif type(token) == Token.Variable:
+        value = context.get(token.name, None)
+        if value == None:
+            raise Exception("Invalid variable {} referenced.".format(name))
+        else:
+            return value
+
+def parse_and_eval_expression(token_iter, context):
+    output_queue = parse_expression(token_iter)
+    stack = []
+
+    while len(output_queue) > 0:
+        token = output_queue.popleft()
+        if is_operator(token):
+            if len(stack) >= 2:
+                operand2_value = stack.pop()
+                operand1_value = stack.pop()
+
+                if type(token) == Token.Divide:
+                    stack.append(operand1_value / operand2_value)
+                elif type(token) == Token.Multiply:
+                    stack.append(operand1_value / operand2_value)
+                elif type(token) == Token.Minus:
+                    stack.append(operand1_value - operand2_value)
+                elif type(token) == Token.Plus:
+                    stack.append(operand1_value + operand2_value)
+                elif type(token) == Token.Equals:
+                    stack.append(operand1_value == operand2_value)
+                elif type(token) == Token.LessThan:
+                    stack.append(operand1_value < operand2_value)
+                elif type(token) == Token.GreaterThan:
+                    stack.append(operand1_value > operand2_value)
+                elif type(token) == Token.LessThanEqual:
+                    stack.append(operand1_value <= operand2_value)
+                elif type(token) == Token.NotEqual:
+                    stack.append(operand1_value != operand2_value)
+                else:
+                    raise Exception("Should not get here")
+            else:
+                raise Exception("Operator {} requires two operands".format(get_string_for_token(token)))
+        else:
+            stack.append(_get_value(token, context))
+
+    return stack[0]
