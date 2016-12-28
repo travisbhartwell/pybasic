@@ -7,15 +7,14 @@ from .tokens import (Token, Associativity, is_operator, is_unary_operator,
                      get_operator_precedence, get_string_for_token)
 
 
-def evaluate(code_lines):
-    lineno_to_code = {}
-    line_map = {}
+def _raise_error(message, line_number, pos):
+    raise Exception("At {}, {} {}".format(line_number, pos, message))
 
-    for line_number, line_tokens in code_lines:
-        lineno_to_code[line_number] = line_tokens
+
+def evaluate(code_lines):
+    lineno_to_code = dict(code_lines)
     line_numbers = sorted(lineno_to_code.keys())
-    for index, line_number in enumerate(line_numbers):
-        line_map[line_number] = index
+    line_map = dict([(b, a) for (a, b) in enumerate(line_numbers)])
 
     context = {}
     num_lines = len(line_numbers)
@@ -43,17 +42,17 @@ def evaluate(code_lines):
                     if isinstance(token, Token.Number):
                         line_index = line_map.get(token.value)
                         if line_index is None:
-                            raise Exception(
-                                "At {}, {} invalid target line for GOTO".
-                                format(line_number, pos))
+                            _raise_error("invalid target line for GOTO",
+                                         line_number,
+                                         pos)
                     else:
-                        raise Exception(
-                            "At {}, {} GOTO must be followed by valid line number".
-                            format(line_number, pos))
+                        _raise_error("GOTO must be followed by valid line number",
+                                     line_number,
+                                     pos)
                 except StopIteration:
-                    raise Exception(
-                        "At {}, {} GOTO must be followed by valid line number".
-                        format(line_number, pos))
+                    _raise_error("GOTO must be followed by valid line number",
+                                 line_number,
+                                 pos)
             elif isinstance(token, Token.Let):
                 try:
                     token, _ = token_iter.next()
@@ -64,17 +63,18 @@ def evaluate(code_lines):
                             value = _parse_and_eval_expression(token_iter,
                                                                context)
                             context[name] = value
-                except (StopIteration, Exception):
-                    raise Exception("At {}, {} invalid syntax for LET.".format(
-                        line_number, pos))
+                except (StopIteration, ExpressionEvalException):
+                    _raise_error("invalid syntax for LET.",
+                                 line_number,
+                                 pos)
             elif isinstance(token, Token.Print):
                 try:
                     value = _parse_and_eval_expression(token_iter, context)
                     print(value)
-                except Exception:
-                    raise Exception(
-                        "At {}, {} PRINT must be followed by valid expression".
-                        format(line_number, pos))
+                except ExpressionEvalException:
+                    _raise_error("PRINT must be followed by valid expression",
+                                 line_number,
+                                 pos)
             elif isinstance(token, Token.Input):
                 try:
                     token, pos = token_iter.next()
@@ -82,9 +82,9 @@ def evaluate(code_lines):
                         input_value = input().strip()
                         context[token.name] = input_value
                 except StopIteration:
-                    raise Exception(
-                        "At {}, {} INPUT must be followed by a variable name".
-                        format(line_number, pos))
+                    _raise_error("INPUT must be followed by a variable name",
+                                 line_number,
+                                 pos)
             elif isinstance(token, Token.If):
                 # Expected Next:
                 # Expression THEN Number
@@ -100,29 +100,34 @@ def evaluate(code_lines):
                                 line_has_goto = True
                                 line_index = line_map.get(token.value)
                                 if line_index is None:
-                                    raise Exception(
-                                        "At {}, {} invalid target line for THEN".
-                                        format(line_number, pos))
+                                    _raise_error("invalid target line for THEN",
+                                                 line_number,
+                                                 pos)
                             else:
-                                raise Exception(
-                                    "At {}, {} IF must be followed by an expression and then THEN line number."
-                                    .format(line_number, pos))
+                                _raise_error("Should be: IF expression THEN line number",
+                                             line_number,
+                                             pos)
                         else:
-                            raise Exception(
-                                "At {}, {} IF must be followed by an expression and then THEN line number."
-                                .format(line_number, pos))
-                except (StopIteration, Exception):
-                    raise Exception(
-                        "At {}, {} IF must be followed by an expression and then THEN line number.".
-                        format(line_number, pos))
+                            _raise_error("Should be: IF expression THEN line number",
+                                         line_number,
+                                         pos)
+                except (StopIteration, ExpressionEvalException):
+                    _raise_error("Should be: IF expression THEN line number",
+                                 line_number,
+                                 pos)
             else:
-                raise Exception("At {}, {} invalid syntax".format(line_number,
-                                                                  pos))
+                _raise_error("Invalid syntax",
+                             line_number,
+                             pos)
 
         if not line_has_goto:
             line_index += 1
             if line_index == num_lines:
                 break
+
+
+class ExpressionEvalException(Exception):
+    pass
 
 
 def _parse_expression(token_iter):
@@ -138,10 +143,10 @@ def _parse_expression(token_iter):
                 top_op = operator_stack[-1]
                 associativity = get_operator_associativity(token)
 
-                if (associativity == Associativity.Left \
-                   and get_operator_precedence(token) <= get_operator_precedence(top_op)) or \
-                (associativity == Associativity.Right \
-                     and get_operator_precedence(token) < get_operator_precedence(top_op)):
+                if (associativity == Associativity.Left and
+                    get_operator_precedence(token) <= get_operator_precedence(top_op)) or \
+                        (associativity == Associativity.Right and
+                         get_operator_precedence(token) < get_operator_precedence(top_op)):
                     top_op = operator_stack.pop()
                     output_queue.append(top_op)
 
@@ -158,12 +163,12 @@ def _parse_expression(token_iter):
                     else:
                         output_queue.append(next_token)
                 except IndexError:
-                    raise Exception("Mismatched parenthesis in expression")
+                    raise ExpressionEvalException("Mismatched parenthesis in expression")
 
     while len(operator_stack) > 0:
         next_token = operator_stack.pop()
         if isinstance(next_token, (Token.LParen, Token.RParen)):
-            raise Exception("Mismatched parenthesis in expression")
+            raise ExpressionEvalException("Mismatched parenthesis in expression")
         else:
             output_queue.append(next_token)
 
@@ -172,13 +177,13 @@ def _parse_expression(token_iter):
 
 def _get_value(token, context):
     if not is_value(token):
-        raise Exception("Operand {} is not a value".format(str(token)))
+        raise ExpressionEvalException("Operand {} is not a value".format(str(token)))
     if isinstance(token, (Token.Number, Token.BString)):
         return token.value
     elif isinstance(token, Token.Variable):
         value = context.get(token.name, None)
         if value is None:
-            raise Exception("Invalid variable {} referenced.".format(
+            raise ExpressionEvalException("Invalid variable {} referenced.".format(
                 token.name))
         else:
             return value
@@ -197,7 +202,7 @@ def _parse_and_eval_expression(token_iter, context):
                 stack.append(
                     get_operation(token)(operand_value))
             else:
-                raise Exception("Operator {} requires an operand".format(
+                raise ExpressionEvalException("Operator {} requires an operand".format(
                     get_string_for_token(token)))
         elif is_operator(token):
             if len(stack) >= 2:
@@ -207,11 +212,11 @@ def _parse_and_eval_expression(token_iter, context):
                 stack.append(
                     get_operation(token)(operand1_value, operand2_value))
             else:
-                raise Exception("Operator {} requires two operands".format(
+                raise ExpressionEvalException("Operator {} requires two operands".format(
                     get_string_for_token(token)))
         else:
             stack.append(_get_value(token, context))
 
     # If the expression is well-formed, there should only be the result on the stack
-    assert (len(stack) == 1)
+    assert len(stack) == 1
     return stack[0]

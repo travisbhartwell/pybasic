@@ -55,7 +55,6 @@ _str_to_token_map = {
     "*": Token.Multiply,
     "/": Token.Divide,
     "-": Token.Minus,
-    "-": Token.UMinus,
     "+": Token.Plus,
     "(": Token.LParen,
     ")": Token.RParen,
@@ -106,12 +105,15 @@ def get_operator_precedence(token_obj):
     if not is_operator(token_obj):
         raise Exception("Not an operator: {}".format(str(token_obj)))
 
-    if isinstance(token_obj, (Token.Multiply, Token.Divide)):
+    if isinstance(token_obj, (Token.UMinus, Token.Bang)):
+        return 12
+    elif isinstance(token_obj, (Token.Multiply, Token.Divide)):
         return 10
     elif isinstance(token_obj, (Token.Minus, Token.Plus)):
         return 8
     else:
         return 4
+
 
 def get_operator_associativity(token_obj):
     if not is_operator(token_obj):
@@ -121,6 +123,7 @@ def get_operator_associativity(token_obj):
         return Associativity.Right
     else:
         return Associativity.Left
+
 
 @match_partial(Token)
 class get_operation(object):
